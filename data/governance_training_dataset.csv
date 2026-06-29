@@ -1,0 +1,2 @@
+timestamp,owner,repo,open_issues,bugs,security_issues,open_prs,recent_commits,risk_score,risk_level,compliance_score,compliance_status,health_score,health_status
+2026-06-26 16:29:24,octocat,Hello-World,91,0,0,100,3,311.0,High,72.7,Partially Compliant,0.0,Critical
