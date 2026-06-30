@@ -6,3 +6,6 @@ plotly
 scikit-learn
 reportlab
 python-dotenv
+joblib
+shap
+matplotlib
