@@ -1,7 +1,5 @@
-from src.trend_engine import get_trend_data
-from src.trend_visualization import create_trend_chart
-from src.explainability_engine import explain_prediction
 import streamlit as st
+
 from src.github_connector import analyze_github_repo
 from src.risk_engine import calculate_risk
 from src.visualization import create_risk_chart
@@ -12,6 +10,10 @@ from src.report_generator import generate_governance_report
 from src.governance_assistant import answer_governance_question
 from src.database import save_analysis
 from src.prediction_engine import predict_repository_risk
+from src.explainability_engine import explain_prediction
+from src.shap_engine import get_shap_explanation
+from src.trend_engine import get_trend_data
+from src.trend_visualization import create_trend_chart
 
 
 def render_dashboard():
@@ -113,17 +115,27 @@ def render_dashboard():
     col8.metric("Health Score", health_score)
 
     st.subheader("🤖 AI Risk Prediction")
-
     pred_col1, pred_col2 = st.columns(2)
     pred_col1.metric("Predicted Risk", predicted_risk)
     pred_col2.metric("Prediction Confidence", f"{prediction_confidence:.2f}%")
 
     st.subheader("🔍 Explainable AI Insights")
-
     explanations = explain_prediction(data)
-
     for explanation in explanations:
         st.write("•", explanation)
+
+    st.subheader("SHAP-Based Repository Explanation")
+    shap_df = get_shap_explanation(data)
+    st.dataframe(shap_df, use_container_width=True)
+
+    st.write("### Top Risk-Increasing Factors")
+    for _, row in shap_df.head(5).iterrows():
+        st.write(f"• **{row['feature']}** : {row['shap_value']:.4f}")
+
+    st.write("### Top Risk-Reducing Factors")
+    for _, row in shap_df.tail(3).iterrows():
+        st.write(f"• **{row['feature']}** : {row['shap_value']:.4f}")
+
     fig = create_risk_chart(
         data["open_issues"],
         data["bugs"],
@@ -187,7 +199,6 @@ def render_dashboard():
         )
 
     st.subheader("AI Governance Assistant")
-
     user_question = st.text_area(
         "Ask a governance question",
         "Why is the project risk high?"
@@ -206,12 +217,11 @@ def render_dashboard():
             recommendation,
             actions
         )
-
         st.write(assistant_answer)
-        st.subheader("📈 Governance Trend Analytics")
 
-trend_df = get_trend_data()
+    st.subheader("📈 Governance Trend Analytics")
+    trend_df = get_trend_data()
 
-if not trend_df.empty:
-    trend_chart = create_trend_chart(trend_df)
-    st.plotly_chart(trend_chart, use_container_width=True)
+    if not trend_df.empty:
+        trend_chart = create_trend_chart(trend_df)
+        st.plotly_chart(trend_chart, use_container_width=True)

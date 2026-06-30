@@ -1,0 +1,5 @@
+model,accuracy,precision,recall,f1_score
+Decision Tree,0.9375,0.9406,0.9375,0.9379
+Random Forest,0.9375,0.8804,0.9375,0.9077
+Extra Trees,0.9062,0.8555,0.9062,0.8772
+Gradient Boosting,1.0,1.0,1.0,1.0
