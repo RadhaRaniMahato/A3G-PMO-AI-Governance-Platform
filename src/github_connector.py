@@ -24,12 +24,16 @@ def github_get(url):
     if not headers:
         return None, "GitHub token not found"
 
-    response = requests.get(url, headers=headers, timeout=20)
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
 
-    if response.status_code != 200:
-        return None, f"GitHub API Error {response.status_code}: {response.text}"
+        if response.status_code != 200:
+            return None, f"GitHub API Error {response.status_code}: {response.text}"
 
-    return response.json(), None
+        return response.json(), None
+
+    except requests.exceptions.RequestException as e:
+        return None, f"Request failed: {str(e)}"
 
 
 def analyze_github_repo(owner, repo):
@@ -42,10 +46,7 @@ def analyze_github_repo(owner, repo):
 
     repo_data, error = github_get(repo_url)
     if error:
-        return {
-            "error": error,
-            "auth_status": "Token loaded"
-        }
+        return {"auth_status": "Token loaded", "error": error}
 
     issues, error = github_get(issues_url)
     if error:
@@ -99,12 +100,10 @@ def analyze_github_repo(owner, repo):
     return {
         "auth_status": "Token loaded",
         "error": None,
-
         "stars": repo_data.get("stargazers_count", 0),
         "forks": repo_data.get("forks_count", 0),
         "watchers": repo_data.get("watchers_count", 0),
         "repo_open_issues": repo_data.get("open_issues_count", 0),
-
         "open_issues": len([issue for issue in issues if "pull_request" not in issue]),
         "bugs": bugs,
         "security_issues": security_issues,
@@ -112,7 +111,6 @@ def analyze_github_repo(owner, repo):
         "recent_commits": len(commits),
         "releases": len(releases),
         "contributors": len(contributors),
-
         "repo_age_days": repo_age_days,
         "days_since_last_push": days_since_last_push
     }
