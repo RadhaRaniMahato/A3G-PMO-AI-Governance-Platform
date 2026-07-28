@@ -9,3 +9,4 @@ python-dotenv
 joblib
 shap
 matplotlib
+gunicorn
