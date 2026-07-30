@@ -1,5 +1,8 @@
 import os
 import requests
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
@@ -25,7 +28,12 @@ def github_get(url):
         return None, "GitHub token not found"
 
     try:
-        response = requests.get(url, headers=headers, timeout=30)
+response = requests.get(
+    url,
+    headers=headers,
+    timeout=30,
+    verify=False
+)
 
         if response.status_code != 200:
             return None, f"GitHub API Error {response.status_code}: {response.text}"
