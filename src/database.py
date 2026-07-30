@@ -1,3 +1,4 @@
+```python
 import sqlite3
 from datetime import datetime
 import os
@@ -47,6 +48,52 @@ def create_database():
     connection.close()
 
 
+def migrate_database():
+    """
+    Adds missing columns to existing SQLite database.
+    Useful when old database exists with previous schema.
+    """
+
+    connection = sqlite3.connect(DB_PATH)
+    cursor = connection.cursor()
+
+    cursor.execute("PRAGMA table_info(analysis_history)")
+    existing_columns = [
+        column[1] for column in cursor.fetchall()
+    ]
+
+    required_columns = {
+        "stars": "INTEGER",
+        "forks": "INTEGER",
+        "watchers": "INTEGER",
+        "repo_open_issues": "INTEGER",
+        "open_issues": "INTEGER",
+        "bugs": "INTEGER",
+        "security_issues": "INTEGER",
+        "open_prs": "INTEGER",
+        "recent_commits": "INTEGER",
+        "releases": "INTEGER",
+        "contributors": "INTEGER",
+        "repo_age_days": "INTEGER",
+        "days_since_last_push": "INTEGER",
+        "risk_score": "REAL",
+        "risk_level": "TEXT",
+        "compliance_score": "REAL",
+        "compliance_status": "TEXT",
+        "health_score": "REAL",
+        "health_status": "TEXT"
+    }
+
+    for column, datatype in required_columns.items():
+        if column not in existing_columns:
+            cursor.execute(
+                f"ALTER TABLE analysis_history ADD COLUMN {column} {datatype}"
+            )
+
+    connection.commit()
+    connection.close()
+
+
 def save_analysis(
     owner,
     repo,
@@ -58,7 +105,9 @@ def save_analysis(
     health_score,
     health_status
 ):
+
     create_database()
+    migrate_database()
 
     connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
@@ -119,7 +168,9 @@ def save_analysis(
 
 
 def get_analysis_history():
+
     create_database()
+    migrate_database()
 
     connection = sqlite3.connect(DB_PATH)
     cursor = connection.cursor()
@@ -153,6 +204,8 @@ def get_analysis_history():
     """)
 
     rows = cursor.fetchall()
+
     connection.close()
 
     return rows
+```
