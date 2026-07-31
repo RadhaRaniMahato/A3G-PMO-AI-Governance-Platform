@@ -1,10 +1,11 @@
 import os
 import requests
 import urllib3
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+
+# Disable SSL warnings (only for development environments)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 load_dotenv()
 
@@ -28,12 +29,12 @@ def github_get(url):
         return None, "GitHub token not found"
 
     try:
-response = requests.get(
-    url,
-    headers=headers,
-    timeout=30,
-    verify=False
-)
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=30,
+            verify=False
+        )
 
         if response.status_code != 200:
             return None, f"GitHub API Error {response.status_code}: {response.text}"
@@ -54,7 +55,10 @@ def analyze_github_repo(owner, repo):
 
     repo_data, error = github_get(repo_url)
     if error:
-        return {"auth_status": "Token loaded", "error": error}
+        return {
+            "auth_status": "Token loaded",
+            "error": error
+        }
 
     issues, error = github_get(issues_url)
     if error:
@@ -98,12 +102,20 @@ def analyze_github_repo(owner, repo):
     days_since_last_push = 0
 
     if created_at:
-        created_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-        repo_age_days = (datetime.now(timezone.utc) - created_date).days
+        created_date = datetime.fromisoformat(
+            created_at.replace("Z", "+00:00")
+        )
+        repo_age_days = (
+            datetime.now(timezone.utc) - created_date
+        ).days
 
     if pushed_at:
-        pushed_date = datetime.fromisoformat(pushed_at.replace("Z", "+00:00"))
-        days_since_last_push = (datetime.now(timezone.utc) - pushed_date).days
+        pushed_date = datetime.fromisoformat(
+            pushed_at.replace("Z", "+00:00")
+        )
+        days_since_last_push = (
+            datetime.now(timezone.utc) - pushed_date
+        ).days
 
     return {
         "auth_status": "Token loaded",
@@ -112,7 +124,9 @@ def analyze_github_repo(owner, repo):
         "forks": repo_data.get("forks_count", 0),
         "watchers": repo_data.get("watchers_count", 0),
         "repo_open_issues": repo_data.get("open_issues_count", 0),
-        "open_issues": len([issue for issue in issues if "pull_request" not in issue]),
+        "open_issues": len(
+            [issue for issue in issues if "pull_request" not in issue]
+        ),
         "bugs": bugs,
         "security_issues": security_issues,
         "open_prs": len(prs),
