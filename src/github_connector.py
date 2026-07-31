@@ -1,138 +1,211 @@
+
+import sqlite3
+from datetime import datetime
 import os
-import requests
-import urllib3
-from datetime import datetime, timezone
-from dotenv import load_dotenv
-
-# Disable SSL warnings (only for development environments)
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-load_dotenv()
 
 
-def get_headers():
-    token = os.getenv("GITHUB_TOKEN")
+DB_PATH = "data/a3g_pmo_history.db"
 
-    if not token:
-        return None
 
-    return {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json"
+def create_database():
+    os.makedirs("data", exist_ok=True)
+
+    connection = sqlite3.connect(DB_PATH)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS analysis_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            owner TEXT,
+            repo TEXT,
+
+            stars INTEGER,
+            forks INTEGER,
+            watchers INTEGER,
+            repo_open_issues INTEGER,
+
+            open_issues INTEGER,
+            bugs INTEGER,
+            security_issues INTEGER,
+            open_prs INTEGER,
+            recent_commits INTEGER,
+            releases INTEGER,
+            contributors INTEGER,
+            repo_age_days INTEGER,
+            days_since_last_push INTEGER,
+
+            risk_score REAL,
+            risk_level TEXT,
+            compliance_score REAL,
+            compliance_status TEXT,
+            health_score REAL,
+            health_status TEXT
+        )
+    """)
+
+    connection.commit()
+    connection.close()
+
+
+def migrate_database():
+    """
+    Adds missing columns to existing SQLite database.
+    Useful when old database exists with previous schema.
+    """
+
+    connection = sqlite3.connect(DB_PATH)
+    cursor = connection.cursor()
+
+    cursor.execute("PRAGMA table_info(analysis_history)")
+    existing_columns = [
+        column[1] for column in cursor.fetchall()
+    ]
+
+    required_columns = {
+        "stars": "INTEGER",
+        "forks": "INTEGER",
+        "watchers": "INTEGER",
+        "repo_open_issues": "INTEGER",
+        "open_issues": "INTEGER",
+        "bugs": "INTEGER",
+        "security_issues": "INTEGER",
+        "open_prs": "INTEGER",
+        "recent_commits": "INTEGER",
+        "releases": "INTEGER",
+        "contributors": "INTEGER",
+        "repo_age_days": "INTEGER",
+        "days_since_last_push": "INTEGER",
+        "risk_score": "REAL",
+        "risk_level": "TEXT",
+        "compliance_score": "REAL",
+        "compliance_status": "TEXT",
+        "health_score": "REAL",
+        "health_status": "TEXT"
     }
 
+    for column, datatype in required_columns.items():
+        if column not in existing_columns:
+            cursor.execute(
+                f"ALTER TABLE analysis_history ADD COLUMN {column} {datatype}"
+            )
 
-def github_get(url):
-    headers = get_headers()
+    connection.commit()
+    connection.close()
 
-    if not headers:
-        return None, "GitHub token not found"
 
-    try:
-        response = requests.get(
-            url,
-            headers=headers,
-            timeout=30,
-            verify=False
+def save_analysis(
+    owner,
+    repo,
+    data,
+    risk_score,
+    risk_level,
+    compliance_score,
+    compliance_status,
+    health_score,
+    health_status
+):
+
+    create_database()
+    migrate_database()
+
+    connection = sqlite3.connect(DB_PATH)
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        INSERT INTO analysis_history (
+            timestamp,
+            owner,
+            repo,
+            stars,
+            forks,
+            watchers,
+            repo_open_issues,
+            open_issues,
+            bugs,
+            security_issues,
+            open_prs,
+            recent_commits,
+            releases,
+            contributors,
+            repo_age_days,
+            days_since_last_push,
+            risk_score,
+            risk_level,
+            compliance_score,
+            compliance_status,
+            health_score,
+            health_status
         )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        owner,
+        repo,
+        data.get("stars", 0),
+        data.get("forks", 0),
+        data.get("watchers", 0),
+        data.get("repo_open_issues", 0),
+        data.get("open_issues", 0),
+        data.get("bugs", 0),
+        data.get("security_issues", 0),
+        data.get("open_prs", 0),
+        data.get("recent_commits", 0),
+        data.get("releases", 0),
+        data.get("contributors", 0),
+        data.get("repo_age_days", 0),
+        data.get("days_since_last_push", 0),
+        risk_score,
+        risk_level,
+        compliance_score,
+        compliance_status,
+        health_score,
+        health_status
+    ))
 
-        if response.status_code != 200:
-            return None, f"GitHub API Error {response.status_code}: {response.text}"
-
-        return response.json(), None
-
-    except requests.exceptions.RequestException as e:
-        return None, f"Request failed: {str(e)}"
+    connection.commit()
+    connection.close()
 
 
-def analyze_github_repo(owner, repo):
-    repo_url = f"https://api.github.com/repos/{owner}/{repo}"
-    issues_url = f"https://api.github.com/repos/{owner}/{repo}/issues?state=open&per_page=100"
-    prs_url = f"https://api.github.com/repos/{owner}/{repo}/pulls?state=open&per_page=100"
-    commits_url = f"https://api.github.com/repos/{owner}/{repo}/commits?per_page=100"
-    releases_url = f"https://api.github.com/repos/{owner}/{repo}/releases?per_page=100"
-    contributors_url = f"https://api.github.com/repos/{owner}/{repo}/contributors?per_page=100"
+def get_analysis_history():
 
-    repo_data, error = github_get(repo_url)
-    if error:
-        return {
-            "auth_status": "Token loaded",
-            "error": error
-        }
+    create_database()
+    migrate_database()
 
-    issues, error = github_get(issues_url)
-    if error:
-        issues = []
+    connection = sqlite3.connect(DB_PATH)
+    cursor = connection.cursor()
 
-    prs, error = github_get(prs_url)
-    if error:
-        prs = []
+    cursor.execute("""
+        SELECT
+            timestamp,
+            owner,
+            repo,
+            stars,
+            forks,
+            watchers,
+            repo_open_issues,
+            open_issues,
+            bugs,
+            security_issues,
+            open_prs,
+            recent_commits,
+            releases,
+            contributors,
+            repo_age_days,
+            days_since_last_push,
+            risk_score,
+            risk_level,
+            compliance_score,
+            compliance_status,
+            health_score,
+            health_status
+        FROM analysis_history
+        ORDER BY id DESC
+    """)
 
-    commits, error = github_get(commits_url)
-    if error:
-        commits = []
+    rows = cursor.fetchall()
 
-    releases, error = github_get(releases_url)
-    if error:
-        releases = []
+    connection.close()
 
-    contributors, error = github_get(contributors_url)
-    if error:
-        contributors = []
+    return rows
 
-    bugs = 0
-    security_issues = 0
-
-    for issue in issues:
-        if "pull_request" in issue:
-            continue
-
-        labels = [label["name"].lower() for label in issue.get("labels", [])]
-
-        if "bug" in labels:
-            bugs += 1
-
-        if "security" in labels or "vulnerability" in labels:
-            security_issues += 1
-
-    created_at = repo_data.get("created_at")
-    pushed_at = repo_data.get("pushed_at")
-
-    repo_age_days = 0
-    days_since_last_push = 0
-
-    if created_at:
-        created_date = datetime.fromisoformat(
-            created_at.replace("Z", "+00:00")
-        )
-        repo_age_days = (
-            datetime.now(timezone.utc) - created_date
-        ).days
-
-    if pushed_at:
-        pushed_date = datetime.fromisoformat(
-            pushed_at.replace("Z", "+00:00")
-        )
-        days_since_last_push = (
-            datetime.now(timezone.utc) - pushed_date
-        ).days
-
-    return {
-        "auth_status": "Token loaded",
-        "error": None,
-        "stars": repo_data.get("stargazers_count", 0),
-        "forks": repo_data.get("forks_count", 0),
-        "watchers": repo_data.get("watchers_count", 0),
-        "repo_open_issues": repo_data.get("open_issues_count", 0),
-        "open_issues": len(
-            [issue for issue in issues if "pull_request" not in issue]
-        ),
-        "bugs": bugs,
-        "security_issues": security_issues,
-        "open_prs": len(prs),
-        "recent_commits": len(commits),
-        "releases": len(releases),
-        "contributors": len(contributors),
-        "repo_age_days": repo_age_days,
-        "days_since_last_push": days_since_last_push
-    }
