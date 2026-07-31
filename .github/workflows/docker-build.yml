@@ -31,3 +31,8 @@ jobs:
     - name: Push Docker Image
       run: |
         docker push radharani04/a3g-pmo:latest
+
+        
+    - name: Trigger Render Deploy
+      run: |
+       curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
