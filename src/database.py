@@ -208,4 +208,4 @@ def get_analysis_history():
     connection.close()
 
     return rows
-```
+
